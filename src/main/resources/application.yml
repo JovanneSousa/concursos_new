@@ -1,0 +1,82 @@
+spring:
+  application:
+    name: concursos-news
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/concursos_news}
+    username: ${DATABASE_USER:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+  mail:
+    host: ${EMAIL_HOST:smtp.gmail.com}
+    port: ${EMAIL_PORT:587}
+    username: ${EMAIL_USERNAME:}
+    password: ${EMAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+    chat-id: ${TELEGRAM_CHAT_ID:}
+
+notification:
+  email:
+    to: ${NOTIFICATION_EMAIL_TO:${EMAIL_USERNAME:}}
+
+# ─── Monitoramento, Priorização e Filtro de TI ─────────────────────────────
+monitor:
+  # Lista de estados prioritários separados por vírgula (configurável via env MONITOR_ESTADOS_PRIORITARIOS)
+  estados-prioritarios: ${MONITOR_ESTADOS_PRIORITARIOS:MT,SC,PR,DF,GO}
+
+  # Filtro para notificar apenas concursos envolvendo Tecnologia da Informação (TI)
+  filtro-tecnologia:
+    habilitado: ${MONITOR_FILTRO_TI_HABILITADO:true}
+    # Termos customizados adicionais separados por vírgula (opcional)
+    termos-customizados: ${MONITOR_TERMOS_TI_CUSTOMIZADOS:}
+
+# ─── Scrapers ───────────────────────────────────────────────────────────────
+scraper:
+  # Executa uma rodada logo após o boot da aplicação se configurado como true
+  executar-no-startup: ${SCRAPER_EXECUTE_ON_STARTUP:false}
+
+  # Cron: executa a cada 3 horas por padrão
+  cron: ${SCRAPER_CRON:0 0 */3 * * *}
+
+  fgv:
+    enabled: ${SCRAPER_FGV_ENABLED:true}
+
+  cebraspe:
+    enabled: ${SCRAPER_CEBRASPE_ENABLED:true}
+
+  fcc:
+    enabled: ${SCRAPER_FCC_ENABLED:true}
+
+  ibfc:
+    enabled: ${SCRAPER_IBFC_ENABLED:true}
+
+  quadrix:
+    enabled: ${SCRAPER_QUADRIX_ENABLED:true}
+
+  selecon:
+    enabled: ${SCRAPER_SELECON_ENABLED:true}
+
+  dou:
+    enabled: ${SCRAPER_DOU_ENABLED:true}
+    keywords: ${SCRAPER_DOU_KEYWORDS:Edital de Concurso Público}
+    regiao: ${SCRAPER_DOU_REGIAO:Mato Grosso}
+
+  doe-mt:
+    enabled: ${SCRAPER_DOE_MT_ENABLED:true}
+    keywords: ${SCRAPER_DOE_MT_KEYWORDS:Edital de Concurso Público,Aviso de Concurso,Banca Examinadora,processo seletivo}
