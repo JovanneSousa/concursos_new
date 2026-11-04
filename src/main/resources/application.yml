@@ -75,7 +75,6 @@ scraper:
   dou:
     enabled: ${SCRAPER_DOU_ENABLED:true}
     keywords: ${SCRAPER_DOU_KEYWORDS:Edital de Concurso Público}
-    regiao: ${SCRAPER_DOU_REGIAO:Mato Grosso}
 
   doe-mt:
     enabled: ${SCRAPER_DOE_MT_ENABLED:true}

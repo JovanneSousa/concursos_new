@@ -27,9 +27,6 @@ public class DouScraperAdapter implements ScraperInputPort {
     @Value("${scraper.dou.keywords:Edital de Concurso Público}")
     private String keywords;
 
-    @Value("${scraper.dou.regiao:Mato Grosso}")
-    private String regiao;
-
     @Override
     public String identificador() { return "DOU"; }
 
@@ -37,7 +34,7 @@ public class DouScraperAdapter implements ScraperInputPort {
     public List<Concurso> raspar() {
         List<Concurso> resultado = new ArrayList<>();
         try {
-            String query = URLEncoder.encode("\"" + keywords + "\" AND \"" + regiao + "\"", StandardCharsets.UTF_8);
+            String query = URLEncoder.encode("\"" + keywords, StandardCharsets.UTF_8);
             String url = BASE_URL + "?q=" + query + "&s=todos&exactDate=dia&sortType=0";
 
             log.info("[DOU] Buscando: {}", url);
@@ -60,7 +57,7 @@ public class DouScraperAdapter implements ScraperInputPort {
 
                 String hash = Concurso.gerarHash("DOU", href);
                 resultado.add(new Concurso(null, titulo, "DOU", href,
-                        regiao, LocalDateTime.now(), "DOU", hash));
+                        "Nacional", LocalDateTime.now(), "DOU", hash));
             }
             log.info("[DOU] {} resultado(s) encontrado(s).", resultado.size());
         } catch (Exception e) {
