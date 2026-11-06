@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-@EnableScheduling
+//@EnableScheduling
 public class ScrapingScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(ScrapingScheduler.class);
