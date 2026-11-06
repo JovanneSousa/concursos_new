@@ -6,7 +6,9 @@ import com.concurso.monitor.domain.ports.in.ScraperInputPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,21 +18,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-//@EnableScheduling
+@EnableScheduling
 public class ScrapingScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(ScrapingScheduler.class);
 
     private final List<ScraperInputPort> scrapers;
     private final ProcessarNovosConcursosUseCase useCase;
+    private final ConfigurableApplicationContext context;
 
     @Value("${scraper.executar-no-startup:false}")
     private boolean executarNoStartup;
 
+    @Value("${scraper.finalizar-apos-execucao:false}")
+    private boolean finalizarAposExecucao;
+
     public ScrapingScheduler(List<ScraperInputPort> scrapers,
-                             ProcessarNovosConcursosUseCase useCase) {
+                             ProcessarNovosConcursosUseCase useCase, ConfigurableApplicationContext context) {
         this.scrapers = scrapers;
         this.useCase = useCase;
+        this.context = context;
         log.info("ScrapingScheduler inicializado com {} scraper(s) ativos.", scrapers.size());
     }
 
@@ -40,15 +47,18 @@ public class ScrapingScheduler {
             log.info("Disparo imediato configurado (scraper.executar-no-startup=true). Iniciando scraping...");
             executarTodos();
         }
+        if(finalizarAposExecucao) {
+            log.info("Encerrando a aplicação após a conclusão da execução de startup...");
+            int exitCode = SpringApplication.exit(context, () -> 0);
+            System.exit(exitCode);
+        }
     }
 
     /**
      * Executa todos os scrapers na frequência configurada em application.yml.
      * Valor padrão: a cada 3 horas.
      */
-    // Scheduled comentado para github Action
-    //@Scheduled(cron = "${scraper.cron:0 0 */3 * * *}")
-    //
+    @Scheduled(cron = "${scraper.cron:0 0 */3 * * *}")
     public void executarTodos() {
         log.info("=== Ciclo de scraping iniciado ===");
         List<Concurso> todos = new ArrayList<>();

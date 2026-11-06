@@ -50,7 +50,7 @@ monitor:
 scraper:
   # Executa uma rodada logo após o boot da aplicação se configurado como true
   executar-no-startup: ${SCRAPER_EXECUTE_ON_STARTUP:false}
-
+  finalizar-apos-execucao: ${SCRAPER_FINALIZAR_APOS_EXECUCAO:false}
   # Cron: executa a cada 3 horas por padrão
   cron: ${SCRAPER_CRON:0 0 */3 * * *}
 
