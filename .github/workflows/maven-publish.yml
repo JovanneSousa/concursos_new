@@ -4,11 +4,15 @@
 name: Maven Package
 
 on:
-  release:
-    types: [created]
+  schedule:
+    # Executa a cada 6 horas (Expressão CRON em UTC)
+    - cron: '0 */6 * * *'
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Permite acionar manualmente no painel "Actions"
 
 jobs:
-  build:
+  monitor:
 
     runs-on: ubuntu-latest
     permissions:
@@ -16,20 +20,20 @@ jobs:
       packages: write
 
     steps:
+    - name: Checkout do repositório
     - uses: actions/checkout@v4
-    - name: Set up JDK 11
+
+    - name: Iniciar JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '11'
+        java-version: '21'
         distribution: 'temurin'
-        server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
-        settings-path: ${{ github.workspace }} # location for the settings.xml file
+        cache: 'maven'
 
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml
+    - name: Compilar e empacotar aplicação
+      run: mvn -B clean package -DskipTests
 
-    - name: Publish to GitHub Packages Apache Maven
-      run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
+    - name: Executar bot de verificação de concursos
       env:
         GITHUB_TOKEN: ${{ github.token }}
         DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
@@ -43,3 +47,6 @@ jobs:
         SCRAPER_EXECUTE_ON_STARTUP: ${{ secrets.SCRAPER_EXECUTE_ON_STARTUP }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: |
+        # Executa o JAR gerado na pasta target/
+        java -jar target/*.jar
