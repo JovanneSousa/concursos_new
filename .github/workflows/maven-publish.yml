@@ -1,11 +1,10 @@
-# This workflow will build a package using Maven and then publish it to GitHub packages when a release is created
-# For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#apache-maven-with-a-settings-path
+# Workflow para compilar o projeto Java (Maven) e executar a verificação de concursos em background
 
-name: Maven Package
+name: Concursos News Scraper Bot
 
 on:
   schedule:
-    # Executa a cada 6 horas (Expressão CRON em UTC)
+    # Executa a cada 6 horas no minuto 0 (Ex: 00:00, 06:00, 12:00, 18:00 UTC)
     - cron: '0 */6 * * *'
   push:
     branches: [ "main" ]
@@ -13,7 +12,6 @@ on:
 
 jobs:
   monitor:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -21,7 +19,7 @@ jobs:
 
     steps:
     - name: Checkout do repositório
-    - uses: actions/checkout@v4
+      uses: actions/checkout@v4
 
     - name: Iniciar JDK 21
       uses: actions/setup-java@v4
