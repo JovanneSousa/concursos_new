@@ -46,7 +46,9 @@ public class ScrapingScheduler {
      * Executa todos os scrapers na frequência configurada em application.yml.
      * Valor padrão: a cada 3 horas.
      */
-    @Scheduled(cron = "${scraper.cron:0 0 */3 * * *}")
+    // Scheduled comentado para github Action
+    //@Scheduled(cron = "${scraper.cron:0 0 */3 * * *}")
+    //
     public void executarTodos() {
         log.info("=== Ciclo de scraping iniciado ===");
         List<Concurso> todos = new ArrayList<>();
