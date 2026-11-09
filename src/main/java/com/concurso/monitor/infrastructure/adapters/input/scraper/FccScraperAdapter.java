@@ -19,7 +19,7 @@ import java.util.List;
 public class FccScraperAdapter implements ScraperInputPort {
 
     private static final Logger log = LoggerFactory.getLogger(FccScraperAdapter.class);
-    private static final String URL = "https://www.fcc.org.br/fcc/concursos-publicos";
+    private static final String URL = "https://www.concursosfcc.com.br/";
     private static final String BASE_URL = "https://www.fcc.org.br";
 
     @Override
@@ -35,19 +35,39 @@ public class FccScraperAdapter implements ScraperInputPort {
                     .timeout(10_000)
                     .get();
 
-            for (Element item : doc.select("ul.lista-concursos li")) {
-                Element link = item.selectFirst("a");
-                if (link == null) continue;
+            // 1. Encontra o cabeçalho "Inscrições abertas"
+            Element cabecalhoInscricoes = doc.selectFirst("div.rotuloTopico1:contains(Inscrições abertas)");
 
-                String titulo = link.text().trim();
-                String href = link.attr("href");
-                String linkCompleto = href.startsWith("http") ? href : BASE_URL + href;
+            if (cabecalhoInscricoes != null) {
+                // 2. Seleciona o div imediatamente após o cabeçalho que contém a lista
+                Element containerLista = cabecalhoInscricoes.nextElementSibling();
 
-                if (titulo.isBlank() || linkCompleto.isBlank()) continue;
+                if (containerLista != null && containerLista.hasClass("textoPreto")) {
+                    // 3. Itera sobre cada tag <a> dentro desse container
+                    for (Element link : containerLista.select("a.textoPreto")) {
+                        String titulo = link.text().trim();
 
-                String hash = Concurso.gerarHash("FCC", linkCompleto);
-                resultado.add(new Concurso(null, titulo, "FCC", linkCompleto,
-                        "Nacional", LocalDateTime.now(), "FCC", hash));
+                        // Busca o span com o cargo logo em seguida (opcional, pode ser anexado ao título)
+                        Element spanCargo = link.nextElementSibling();
+                        if (spanCargo != null && spanCargo.tagName().equals("br")) {
+                            spanCargo = spanCargo.nextElementSibling();
+                        }
+                        if (spanCargo != null && spanCargo.hasClass("textoCinza")) {
+                            titulo = titulo + " - " + spanCargo.text().trim();
+                        }
+
+                        String href = link.attr("href");
+                        String linkCompleto = href.startsWith("http") ? href : BASE_URL + href;
+
+                        if (titulo.isBlank() || linkCompleto.isBlank()) continue;
+
+                        String hash = Concurso.gerarHash("FCC", linkCompleto);
+                        resultado.add(new Concurso(null, titulo, "FCC", linkCompleto,
+                                "Nacional", LocalDateTime.now(), "FCC", hash));
+                    }
+                }
+            } else {
+                log.warn("[FCC] Não foi encontrado o bloco de 'Inscrições abertas' na página.");
             }
             log.info("[FCC] {} concurso(s) encontrado(s).", resultado.size());
         } catch (Exception e) {

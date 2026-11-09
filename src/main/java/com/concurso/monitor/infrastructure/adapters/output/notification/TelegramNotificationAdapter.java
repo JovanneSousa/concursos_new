@@ -13,7 +13,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
-
+@Component
 public class TelegramNotificationAdapter implements NotificacaoOutputPort {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramNotificationAdapter.class);
