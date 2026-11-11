@@ -2,6 +2,7 @@ package com.concurso.monitor.infrastructure.adapters.input.scraper;
 
 import com.concurso.monitor.domain.model.Concurso;
 import com.concurso.monitor.domain.ports.in.ScraperInputPort;
+import com.concurso.monitor.domain.service.FiltroTecnologiaService;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -13,7 +14,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @ConditionalOnProperty(name = "scraper.selecon.enabled", havingValue = "true", matchIfMissing = true)
@@ -22,14 +25,40 @@ public class SeleconScraperAdapter implements ScraperInputPort {
     private static final Logger log = LoggerFactory.getLogger(SeleconScraperAdapter.class);
     private static final String URL = "https://selecon.org.br/concursos/";
 
+    private final FiltroTecnologiaService filtroTecnologiaService;
+
+    public SeleconScraperAdapter(FiltroTecnologiaService filtroTecnologiaService) {
+        this.filtroTecnologiaService = filtroTecnologiaService;
+    }
+
     @Override
     public String identificador() {
         return "SELECON";
     }
 
+    /**
+     * Um concurso da Selecon é de TI se o título OU algum dos cargos da página do concurso
+     * (plataforma selecao.net.br: aba "Vagas" ou texto de informações gerais) for de TI.
+     */
+    @Override
+    public boolean ehTecnologia(Concurso concurso) {
+        if (filtroTecnologiaService.isTecnologia(concurso.titulo(), null)) {
+            return true;
+        }
+        try {
+            return CargosSelecaoNetExtrator.buscar(concurso.linkEdital()).stream()
+                    .anyMatch(cargo -> filtroTecnologiaService.isTecnologia(cargo, null));
+        } catch (Exception e) {
+            log.warn("[SELECON] Falha ao buscar cargos de '{}': {}", concurso.linkEdital(), e.getMessage());
+            return false;
+        }
+    }
+
     @Override
     public List<Concurso> raspar() {
         List<Concurso> resultado = new ArrayList<>();
+        Set<String> hashesVistos = new HashSet<>();
+        int analisados = 0;
         try {
             log.info("[SELECON] Iniciando scraping em {}", URL);
             Document doc = Jsoup.connect(URL)
@@ -88,9 +117,9 @@ public class SeleconScraperAdapter implements ScraperInputPort {
                 }
 
                 String hash = Concurso.gerarHash("SELECON", linkCompleto);
-                boolean jaAdicionado = resultado.stream().anyMatch(c -> c.hashDeduplicacao().equals(hash));
-                if (!jaAdicionado) {
-                    resultado.add(new Concurso(
+                if (hashesVistos.add(hash)) {
+                    analisados++;
+                    Concurso concurso = new Concurso(
                             null,
                             titulo,
                             "Instituto Selecon",
@@ -99,11 +128,15 @@ public class SeleconScraperAdapter implements ScraperInputPort {
                             LocalDateTime.now(),
                             "SELECON",
                             hash
-                    ));
+                    );
+                    // Retorna somente os concursos de TI (título ou cargos)
+                    if (ehTecnologia(concurso)) {
+                        resultado.add(concurso.comTecnologia(true));
+                    }
                 }
             }
 
-            log.info("[SELECON] {} concurso(s) encontrado(s).", resultado.size());
+            log.info("[SELECON] {} concurso(s) analisado(s), {} de TI.", analisados, resultado.size());
         } catch (Exception e) {
             log.error("[SELECON] Erro ao raspar: {}", e.getMessage(), e);
         }
