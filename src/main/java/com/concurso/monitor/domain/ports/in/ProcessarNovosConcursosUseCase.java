@@ -40,8 +40,8 @@ public class ProcessarNovosConcursosUseCase {
      * Processa uma lista de concursos candidatos:
      * 1. Classifica prioridade de estado (MT, SC, PR, DF, GO, etc.).
      * 2. Classifica perfil de Tecnologia da Informação (TI).
-     * 3. Salva todos os concursos novos no banco para deduplicação (evita reprocessamento contínuo).
-     * 4. Dispara notificações APENAS para os editais com perfil de TI, em lote unificado.
+     * 3. Descarta os concursos que não são de TI (não são salvos nem notificados).
+     * 4. Salva os concursos de TI novos no banco e dispara notificações em lote unificado.
      */
     public void executar(List<Concurso> candidatos) {
         if (candidatos == null || candidatos.isEmpty()) {
@@ -65,24 +65,23 @@ public class ProcessarNovosConcursosUseCase {
 
         for (Concurso concurso : classificados) {
             try {
+                // Concursos fora da área de TI não são persistidos nem notificados
+                if (!concurso.tecnologia()) {
+                    log.debug("Concurso descartado (não é perfil de TI): [{}]", concurso.titulo());
+                    continue;
+                }
+
                 if (concursoRepository.existePorHash(concurso.hashDeduplicacao())) {
                     log.debug("Concurso já conhecido no banco, ignorando: [{}]", concurso.titulo());
                     continue;
                 }
 
-                // Salva no banco de dados para garantir deduplicação
                 concursoRepository.salvar(concurso);
                 totalNovos++;
 
-                // Filtra para disparo de notificação: somente vagas de Tecnologia
-                if (concurso.tecnologia()) {
-                    novosParaNotificar.add(concurso);
-                    log.info("🎯 [TI DETECTADO] Concurso incluído para notificação: [{}] | Região: {} | Banca: {} | Prioritário: {}",
-                            concurso.titulo(), concurso.regiao(), concurso.banca(), concurso.prioritario());
-                } else {
-                    log.debug("Concurso arquivado no banco, ignorado para notificação (não é perfil de TI): [{}]",
-                            concurso.titulo());
-                }
+                novosParaNotificar.add(concurso);
+                log.info("🎯 [TI DETECTADO] Concurso incluído para notificação: [{}] | Região: {} | Banca: {} | Prioritário: {}",
+                        concurso.titulo(), concurso.regiao(), concurso.banca(), concurso.prioritario());
             } catch (Exception e) {
                 log.error("Erro ao persistir/processar concurso [{}]: {}", concurso.titulo(), e.getMessage(), e);
             }

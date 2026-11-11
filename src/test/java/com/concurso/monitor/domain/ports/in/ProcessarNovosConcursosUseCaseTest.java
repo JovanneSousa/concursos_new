@@ -70,18 +70,16 @@ class ProcessarNovosConcursosUseCaseTest {
     }
 
     @Test
-    @DisplayName("Deveria salvar concurso no banco para deduplicação mas NÃO disparar notificação se não for de TI")
-    void deveSalvarNoBancoMasNaoNotificarSeNaoForTI() {
+    @DisplayName("Deveria descartar concurso que não é de TI: não salva no banco nem notifica")
+    void deveDescartarConcursoSeNaoForTI() {
         Concurso concursoSaude = criarConcurso("c2", "Médico Cardiologista", "SC");
 
-        when(concursoRepository.existePorHash(concursoSaude.hashDeduplicacao())).thenReturn(false);
         when(estadoPrioritarioService.isPrioritario(any(), any())).thenReturn(true);
         when(filtroTecnologiaService.isTecnologia(concursoSaude.titulo(), "SC")).thenReturn(false);
 
         useCase.executar(List.of(concursoSaude));
 
-        // Deve salvar no banco para não reprocessar no próximo ciclo
-        verify(concursoRepository, times(1)).salvar(any(Concurso.class));
+        verify(concursoRepository, never()).salvar(any(Concurso.class));
 
         // NÃO deve disparar notificação para cargo que não é de TI
         verify(notificacaoOutputPort, never()).enviarNotificacoes(any());
@@ -119,6 +117,7 @@ class ProcessarNovosConcursosUseCaseTest {
         Concurso concurso = criarConcurso("c3", "Desenvolvedor Java", "DF");
 
         when(concursoRepository.existePorHash(concurso.hashDeduplicacao())).thenReturn(true);
+        when(filtroTecnologiaService.isTecnologia(any(), any())).thenReturn(true);
 
         useCase.executar(List.of(concurso));
 
