@@ -2,6 +2,7 @@ package com.concurso.monitor.infrastructure.adapters.input.scraper;
 
 import com.concurso.monitor.domain.model.Concurso;
 import com.concurso.monitor.domain.ports.in.ScraperInputPort;
+import com.concurso.monitor.domain.service.FiltroTecnologiaService;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -13,7 +14,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @ConditionalOnProperty(name = "scraper.quadrix.enabled", havingValue = "true", matchIfMissing = true)
@@ -24,14 +27,40 @@ public class QuadrixScraperAdapter implements ScraperInputPort {
     private static final String BASE_URL = "https://quadrix.org.br";
     private static final String URL_ABERTOS = "https://quadrix.org.br/index/abertos/";
 
+    private final FiltroTecnologiaService filtroTecnologiaService;
+
+    public QuadrixScraperAdapter(FiltroTecnologiaService filtroTecnologiaService) {
+        this.filtroTecnologiaService = filtroTecnologiaService;
+    }
+
     @Override
     public String identificador() {
         return "QUADRIX";
     }
 
+    /**
+     * Um concurso da Quadrix é de TI se o título OU algum dos cargos listados
+     * na aba "Vagas" da página do concurso for de Tecnologia da Informação.
+     */
+    @Override
+    public boolean ehTecnologia(Concurso concurso) {
+        if (filtroTecnologiaService.isTecnologia(concurso.titulo(), null)) {
+            return true;
+        }
+        try {
+            return CargosSelecaoNetExtrator.buscar(concurso.linkEdital()).stream()
+                    .anyMatch(cargo -> filtroTecnologiaService.isTecnologia(cargo, null));
+        } catch (Exception e) {
+            log.warn("[QUADRIX] Falha ao buscar cargos de '{}': {}", concurso.linkEdital(), e.getMessage());
+            return false;
+        }
+    }
+
     @Override
     public List<Concurso> raspar() {
         List<Concurso> resultado = new ArrayList<>();
+        Set<String> hashesVistos = new HashSet<>();
+        int analisados = 0;
         try {
             log.info("[QUADRIX] Iniciando scraping em {}", URL_ABERTOS);
             Document doc = Jsoup.connect(URL_ABERTOS)
@@ -69,9 +98,9 @@ public class QuadrixScraperAdapter implements ScraperInputPort {
                 }
 
                 String hash = Concurso.gerarHash("QUADRIX", linkCompleto);
-                boolean jaAdicionado = resultado.stream().anyMatch(c -> c.hashDeduplicacao().equals(hash));
-                if (!jaAdicionado) {
-                    resultado.add(new Concurso(
+                if (hashesVistos.add(hash)) {
+                    analisados++;
+                    Concurso concurso = new Concurso(
                             null,
                             titulo,
                             "Quadrix",
@@ -80,11 +109,15 @@ public class QuadrixScraperAdapter implements ScraperInputPort {
                             LocalDateTime.now(),
                             "QUADRIX",
                             hash
-                    ));
+                    );
+                    // Retorna somente os concursos de TI (título ou cargos)
+                    if (ehTecnologia(concurso)) {
+                        resultado.add(concurso.comTecnologia(true));
+                    }
                 }
             }
 
-            log.info("[QUADRIX] {} concurso(s) encontrado(s).", resultado.size());
+            log.info("[QUADRIX] {} concurso(s) analisado(s), {} de TI.", analisados, resultado.size());
         } catch (Exception e) {
             log.error("[QUADRIX] Erro ao raspar: {}", e.getMessage(), e);
         }
